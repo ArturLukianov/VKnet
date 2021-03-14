@@ -1,0 +1,106 @@
+<head>
+	<title>VKnet - Analyse VK social networks</title>
+	<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style type="text/css">
+        #network {
+            width: 1500px;
+            height: 800px;
+            border: 1px solid lightgray;
+        }
+    </style>
+</head>
+<body>
+<input type="text" placeholder="id" id="userid">
+<input type="text" placeholder="depth" id="depth" value="1">
+<input type="submit" value="Analyse" onclick="analyse()">
+<input type="submit" value="Stop physics" onclick="stopp()">
+<input type="submit" value="Start physics" onclick="startp()">
+<div id="network"></div>
+<div id="status"></div>
+<script>
+var network;
+
+function setStatus(status) {
+	document.getElementById("status").textContent = status;
+}
+
+function stopp() {
+	network.stopSimulation();
+}
+
+function startp() {
+	network.startSimulation();
+}
+
+function analyse() {
+	var user_id = document.getElementById("userid").value;
+	var depth = document.getElementById("depth").value;
+	setStatus("Loading...");
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', '/analyse/' + user_id + '/' + depth);
+	xhr.send();
+
+	xhr.onreadystatechange = function() {
+		if(xhr.readyState != 4) return;
+		setStatus("Rendering...");
+
+		var result = JSON.parse(xhr.responseText);
+
+		var nodesArray = [];
+		var edgesArray = [];
+
+
+		for(var id in result)
+		{
+			nodesArray.push({
+				id: parseInt(id), 
+				label: result[id]['first_name'],
+				shape: 'circularImage',
+				image: result[id]['photo']
+			});
+			for(var i = 0; i < result[id]['friends'].length; i++)
+			{
+				var friend_id = result[id]['friends'][i];
+				var ok = true;
+				for(var j = 0; j < edgesArray.length; j++)
+				{
+					if((edgesArray[j].from == parseInt(id) && edgesArray[j].to == friend_id) ||
+						(edgesArray[j].from == friend_id && edgesArray[j].to == parseInt(id))) {
+						ok = false;
+						break;
+					}
+				}
+				if(ok) {
+					edgesArray.push({
+						from: parseInt(id),
+						to: friend_id
+					});
+				}
+			}
+		}
+
+
+		var nodes = new vis.DataSet(nodesArray);
+		var edges = new vis.DataSet(edgesArray);
+		var container = document.getElementById('network');
+		var data = {
+			nodes: nodes,
+			edges: edges
+		};
+		var options = {
+			nodes: {
+			  borderWidth:4,
+			  size:20
+			},
+			edges: {
+				width:2
+			}
+		};
+		network = new vis.Network(container, data, options);
+		setStatus("Done");
+	}
+}
+</script>
+</body>
+
